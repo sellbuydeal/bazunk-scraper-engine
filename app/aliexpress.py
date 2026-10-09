@@ -133,7 +133,7 @@ def _extract_product(html, product_id):
             "sku": str(data.get("sku") or "")[:100]}
 
 def product_by_id(product_id: str) -> dict:
-    if not re.fullmatch(r"\\d{10,20}", product_id):
+    if not re.fullmatch(r"\d{10,20}", product_id):
         raise ValueError("Invalid AliExpress product ID")
     url = f"https://www.aliexpress.com/item/{product_id}.html"
     return _extract_product(fetch_html(url), product_id)
@@ -150,14 +150,14 @@ def search_products(query: str, page: int = 1) -> dict:
     for block in parser.jsonld:
         for product in _products(block):
             product_url = str(product.get("url") or "")
-            match = re.search(r"/item/(\\d{10,20})", product_url)
+            match = re.search(r"/item/(\d{10,20})", product_url)
             if match:
                 try:
                     found[match.group(1)] = _extract_product(
                         '<script type="application/ld+json">' + json.dumps(product) + '</script>', match.group(1))
                 except ValueError:
                     pass
-    ids = list(dict.fromkeys(re.findall(r"/item/(\\d{10,20})", html)))
+    ids = list(dict.fromkeys(re.findall(r"/item/(\d{10,20})", html)))
     for item_id in ids[:30]:
         found.setdefault(item_id, None)
     # Enrich only a small bounded batch to avoid flooding AliExpress.
