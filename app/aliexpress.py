@@ -106,7 +106,29 @@ def _extract_product(html, product_id):
     parser.feed(html)
     data = next((p for block in parser.jsonld for p in _products(block)), None)
     if data is None:
-        raise ValueError("Product structured data unavailable (page may require browser verification)")
+        meta = parser.meta
+        title = meta.get("og:title") or meta.get("twitter:title") or ""
+        image = meta.get("og:image") or meta.get("twitter:image") or ""
+        amount = meta.get("product:price:amount") or meta.get("og:price:amount")
+        currency = meta.get("product:price:currency") or meta.get("og:price:currency")
+        if not title:
+            raise ValueError("Product title unavailable in page metadata")
+        price = None
+        if amount and currency and re.fullmatch(r"[A-Z]{3}", currency.upper()):
+            try:
+                value = float(amount.replace(",", ""))
+                if 0 < value < 1000000:
+                    price = {"amount": value, "currency": currency.upper()}
+            except ValueError:
+                pass
+        return {"provider": "aliexpress", "externalId": product_id,
+                "sourceUrl": f"https://www.aliexpress.com/item/{product_id}.html",
+                "title": unescape(title)[:500],
+                "description": unescape(meta.get("og:description") or meta.get("description") or "")[:10000],
+                "category": "", "price": price,
+                "images": [{"url": url} for url in _image_urls(image)],
+                "features": [], "variants": [], "shipping": None,
+                "availability": "unknown", "rating": None, "reviewCount": None, "sku": ""}
     offers = _offer_details(data.get("offers"))
     main_offer = next((o for o in offers if o["price"]), offers[0] if offers else {})
     image_list = _image_urls(data.get("image")) or _image_urls(parser.meta.get("og:image"))
