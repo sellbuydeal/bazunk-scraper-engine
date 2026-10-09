@@ -170,6 +170,8 @@ def search_products(query: str, page: int = 1) -> dict:
             except ValueError:
                 pass
     items = [p for p in found.values() if p and p.get("title") and p.get("price")]
+    import logging
+    logging.getLogger("bazunk.scraper").warning("Search extraction counts: discovered=%d enriched=%d complete=%d", len(ids), len(missing), len(items))
     return {"provider": "aliexpress", "query": query, "page": page, "items": items[:30],
             "nextPage": page + 1 if len(ids) >= 20 else None,
             "discovered": len(ids), "complete": len(items)}
