@@ -162,16 +162,18 @@ def search_products(query: str, page: int = 1) -> dict:
         found.setdefault(item_id, None)
     # Enrich only a small bounded batch to avoid flooding AliExpress.
     missing = [item_id for item_id, item in found.items() if item is None][:8]
+    failure_reasons = {}
     with ThreadPoolExecutor(max_workers=3) as pool:
         jobs = {pool.submit(product_by_id, item_id): item_id for item_id in missing}
         for future in as_completed(jobs):
             try:
                 found[jobs[future]] = future.result()
-            except ValueError:
-                pass
+            except ValueError as exc:
+                reason = str(exc).split(":")[0][:90]
+                failure_reasons[reason] = failure_reasons.get(reason, 0) + 1
     items = [p for p in found.values() if p and p.get("title") and p.get("price")]
     import logging
-    logging.getLogger("bazunk.scraper").warning("Search extraction counts: discovered=%d enriched=%d complete=%d", len(ids), len(missing), len(items))
+    logging.getLogger("bazunk.scraper").warning("Search extraction counts: discovered=%d enriched=%d complete=%d failures=%s", len(ids), len(missing), len(items), failure_reasons)
     return {"provider": "aliexpress", "query": query, "page": page, "items": items[:30],
             "nextPage": page + 1 if len(ids) >= 20 else None,
             "discovered": len(ids), "complete": len(items)}
