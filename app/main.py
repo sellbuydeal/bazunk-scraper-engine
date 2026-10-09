@@ -1,7 +1,14 @@
 """Experimental Bazunk product preview API; external retrieval disabled."""
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Depends
+import os
+from app.aliexpress import product_by_id, search_products
 from pydantic import BaseModel, Field
 from app.providers import parse_product_url
+
+def require_token(authorization: str | None = Header(default=None)):
+    token = os.getenv("SCRAPER_API_TOKEN", "")
+    if not token or authorization != "Bearer " + token:
+        raise HTTPException(status_code=401, detail="Scraper service authentication required")
 
 app = FastAPI(title="Bazunk Scraper Engine", version="0.2.0")
 
@@ -34,3 +41,17 @@ def preview(request: PreviewRequest):
         "status": "not_implemented",
         "message": "Live product retrieval is not enabled; existing Bazunk imports are unaffected.",
     })
+
+@app.get("/v1/aliexpress/search", dependencies=[Depends(require_token)])
+def aliexpress_search(q: str, page: int = 1):
+    try:
+        return search_products(q, page)
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+@app.get("/v1/aliexpress/products/{product_id}", dependencies=[Depends(require_token)])
+def aliexpress_product(product_id: str):
+    try:
+        return product_by_id(product_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
