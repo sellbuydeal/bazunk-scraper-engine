@@ -15,6 +15,7 @@ app = FastAPI(title="Bazunk Scraper Engine", version="0.2.0")
 class PreviewRequest(BaseModel):
     url: str = Field(min_length=12, max_length=2048)
 
+@app.get("/")
 @app.get("/health")
 def health():
     return {"status": "ok", "mode": "experimental", "retrieval_enabled": False}
